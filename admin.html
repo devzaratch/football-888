@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - จัดการตารางบอล</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #121212; color: #ddd; font-family: 'Kanit', sans-serif; }
+        .card { background-color: #1e1e1e; border: 1px solid #333; }
+        .form-control, .form-select { background-color: #2a2a2a; border: 1px solid #444; color: #fff; }
+        .form-control:focus { background-color: #333; color: #fff; border-color: #d4af37; box-shadow: none; }
+        .btn-gold { background-color: #d4af37; color: #000; font-weight: bold; border: none; }
+        .btn-gold:hover { background-color: #b59326; }
+        .match-item { border-bottom: 1px solid #333; padding: 10px 0; }
+        .status-dot { height: 10px; width: 10px; background-color: #555; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-dot.live { background-color: #ff0000; box-shadow: 0 0 5px #ff0000; }
+    </style>
+</head>
+<body>
+
+<div class="container py-5">
+    <h3 class="mb-4 text-center">🔧 แผงควบคุม (Admin)</h3>
+
+    <div class="row justify-content-center">
+        <div class="col-md-5 mb-4">
+            <div class="card p-4">
+                <h5 class="mb-3 text-warning">เพิ่มรายการแข่งใหม่</h5>
+                <form id="addForm">
+                    <div class="mb-2">
+                        <input type="text" class="form-control" id="league" placeholder="ชื่อลีก (เช่น พรีเมียร์ลีก)" required>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col">
+                            <input type="text" class="form-control" id="home" placeholder="ทีมเหย้า" required>
+                        </div>
+                        <div class="col">
+                            <input type="text" class="form-control" id="away" placeholder="ทีมเยือน" required>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" class="form-control" id="time" placeholder="เวลาแข่ง (เช่น 19.30)" required>
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" class="form-control" id="link" placeholder="ลิงก์ .m3u8 (ถ้ามี)" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="isLive">
+                        <label class="form-check-label" for="isLive">กำลังถ่ายทอดสด (LIVE)</label>
+                    </div>
+                    <button type="submit" class="btn btn-gold w-100">บันทึกรายการ</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card p-4">
+                <h5 class="mb-3 text-white">รายการทั้งหมดในระบบ</h5>
+                <div id="admin-match-list">
+                    <div class="text-center text-muted">กำลังโหลด...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+  // ==========================================================
+  //  ใส่ Config ของคุณตรงนี้ (เอาชุดเดียวกับ index.html มาเลย)
+  // ==========================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyA_w7ZMYOx_eVqcFZ2EWrc2pn4QOIe4Ekg",
+    authDomain: "football-888-b9a7e.firebaseapp.com",
+    databaseURL: "https://football-888-b9a7e-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "football-888-b9a7e",
+    storageBucket: "football-888-b9a7e.firebasestorage.app",
+    messagingSenderId: "354132820390",
+    appId: "1:354132820390:web:69b68bc56a506a7ed0cf67",
+    measurementId: "G-RDZFSLYB30"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // 1. ฟังก์ชันเพิ่มข้อมูล (Create)
+  document.getElementById('addForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    const matchesRef = ref(db, 'matches');
+    push(matchesRef, {
+        league: document.getElementById('league').value,
+        home: document.getElementById('home').value,
+        away: document.getElementById('away').value,
+        time: document.getElementById('time').value,
+        links: { link1: document.getElementById('link').value },
+        is_live: document.getElementById('isLive').checked
+    }).then(() => {
+        alert("เพิ่มเรียบร้อย!");
+        document.getElementById('addForm').reset();
+    }).catch((error) => {
+        alert("Error: " + error.message);
+    });
+  });
+
+  // 2. ฟังก์ชันดึงข้อมูลมาแสดง (Read)
+  onValue(ref(db, 'matches'), (snapshot) => {
+    const listDiv = document.getElementById('admin-match-list');
+    listDiv.innerHTML = "";
+    const data = snapshot.val();
+
+    if (data) {
+        Object.keys(data).forEach(key => {
+            const m = data[key];
+            const liveClass = m.is_live ? 'live' : '';
+            const btnColor = m.is_live ? 'btn-danger' : 'btn-outline-secondary';
+            const btnText = m.is_live ? 'หยุด LIVE' : 'เริ่ม LIVE';
+            
+            listDiv.innerHTML += `
+            <div class="match-item d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="status-dot ${liveClass}"></span>
+                    <strong>${m.home} vs ${m.away}</strong>
+                    <div class="small text-muted">${m.league} | ${m.time}</div>
+                </div>
+                <div>
+                    <button class="btn ${btnColor} btn-sm me-2" onclick="toggleLive('${key}', ${m.is_live})">${btnText}</button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="deleteMatch('${key}')">ลบ</button>
+                </div>
+            </div>`;
+        });
+    } else {
+        listDiv.innerHTML = "<p class='text-muted'>ไม่มีรายการ</p>";
+    }
+  });
+
+  // 3. ฟังก์ชันลบและแก้ไข (ให้ HTML เรียกใช้ได้)
+  window.deleteMatch = function(key) {
+    if(confirm('ยืนยันจะลบกู้นี้?')) {
+        remove(ref(db, 'matches/' + key));
+    }
+  }
+
+  window.toggleLive = function(key, currentStatus) {
+    update(ref(db, 'matches/' + key), {
+        is_live: !currentStatus
+    });
+  }
+</script>
+
+</body>
+</html>
